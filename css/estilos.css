@@ -28,7 +28,7 @@
   --radio-chico: 6px;
   --sombra:     0 8px 28px rgba(0, 0, 0, .45);
 
-  --barra-alto: 58px;
+  --barra-alto: 66px;
   --panel-ancho: 384px;
 
   --fuente: 'Barlow', system-ui, -apple-system, 'Segoe UI', sans-serif;
@@ -36,6 +36,9 @@
 }
 
 * { box-sizing: border-box; }
+
+/* El atributo hidden debe ganarle a cualquier display de componente */
+[hidden] { display: none !important; }
 
 html, body {
   margin: 0;
@@ -81,22 +84,67 @@ button { cursor: pointer; }
   background: linear-gradient(90deg, var(--cobre), transparent 62%);
 }
 
-.marca { display: flex; align-items: baseline; gap: 9px; min-width: 0; }
+/* Los iconos son siluetas blancas con transparencia. Se usan como
+   máscara para poder teñirlos del color que corresponda en cada
+   contexto: blancos dentro del marcador, del color del tipo en las
+   listas y filtros. */
+.icono-tipo {
+  display: inline-block;
+  width: 1.05em;
+  height: 1.05em;
+  flex: 0 0 auto;
+  background-color: currentColor;
+  -webkit-mask-position: center;
+  mask-position: center;
+  -webkit-mask-size: contain;
+  mask-size: contain;
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  vertical-align: -0.14em;
+}
+.icono-tipo.caliente  { -webkit-mask-image: url('../assets/iconos/caliente.png');  mask-image: url('../assets/iconos/caliente.png'); }
+.icono-tipo.altura    { -webkit-mask-image: url('../assets/iconos/altura.png');    mask-image: url('../assets/iconos/altura.png'); }
+.icono-tipo.confinado { -webkit-mask-image: url('../assets/iconos/confinado.png'); mask-image: url('../assets/iconos/confinado.png'); }
+
+.marca { display: flex; flex-direction: column; justify-content: center; gap: 0; min-width: 0; }
 .marca strong {
   font-family: var(--condensada);
-  font-size: 20px;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  font-size: 19px;
   font-weight: 600;
   letter-spacing: .2px;
+  line-height: 1.1;
+  overflow: hidden;
+  text-overflow: ellipsis;
   white-space: nowrap;
 }
-.marca span {
-  color: var(--tenue);
-  font-size: 13px;
+.marca .antetitulo {
+  color: var(--cobre);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: .8px;
+  text-transform: uppercase;
+  line-height: 1.2;
   white-space: nowrap;
-  padding-left: 9px;
-  border-left: 1px solid var(--linea);
+}
+
+.logo {
+  height: 42px;
+  width: auto;
+  max-width: 150px;
+  flex: 0 0 auto;
+  object-fit: contain;
+  margin-left: 6px;
+}
+
+.creditos {
+  position: fixed;
+  right: 16px;
+  bottom: 8px;
+  z-index: 300;
+  font-size: 10px;
+  letter-spacing: .3px;
+  color: var(--apagado);
+  pointer-events: none;
 }
 
 .enVivo {
@@ -144,13 +192,8 @@ button { cursor: pointer; }
 .btn.solo-movil { display: none; }
 
 /* Los puntos de color de los filtros sustituyen a los emoji */
-.filtro[data-tipo]:not([data-tipo=""])::before {
-  content: '';
-  width: 8px; height: 8px;
-  border-radius: 50%;
-  background: var(--tono);
-}
-.filtro[aria-pressed="true"][data-tipo]:not([data-tipo=""])::before { background: #0B131B; }
+.filtro .icono-tipo { color: var(--tono); width: 14px; height: 14px; }
+.filtro[aria-pressed="true"] .icono-tipo { color: #0B131B; }
 
 /* En la vista de sala no deben asomar los controles del mapa */
 body.vista-sala .leaflet-control-container { display: none; }
@@ -158,6 +201,7 @@ body.vista-sala .leaflet-control-container { display: none; }
 .btn {
   display: inline-flex;
   align-items: center;
+  white-space: nowrap;
   gap: 7px;
   padding: 9px 15px;
   border: 1px solid var(--linea);
@@ -398,11 +442,12 @@ body.vista-sala .reencuadrar { display: none; }
 
 .marcador {
   position: relative;
-  width: 30px; height: 30px;
+  width: 33px; height: 33px;
   border-radius: 50%;
   display: grid;
   place-items: center;
-  font-size: 14px;
+  color: #fff;
+  font-size: 19px;
   line-height: 1;
   background: var(--tono);
   border: 2px solid rgba(255, 255, 255, .92);
@@ -582,7 +627,8 @@ input[type="date"], input[type="time"] { color-scheme: dark; }
   color: var(--tenue);
   transition: all .15s;
 }
-.tipo-opcion span::before { content: attr(data-glifo); font-size: 20px; }
+.tipo-opcion span .icono-tipo { width: 26px; height: 26px; margin-bottom: 2px; }
+.tipo-opcion input:checked + span .icono-tipo { background-color: var(--tono); }
 .tipo-opcion input:checked + span {
   border-color: var(--tono);
   background: color-mix(in srgb, var(--tono) 16%, var(--fondo));
@@ -630,6 +676,19 @@ input[type="file"] { display: none; }
   font-size: 13.5px;
 }
 .error-form.visible { display: block; }
+
+.exito-form {
+  display: none;
+  padding: 12px 14px;
+  margin-bottom: 14px;
+  border-radius: var(--radio-chico);
+  background: rgba(53, 192, 138, .12);
+  border: 1px solid rgba(53, 192, 138, .45);
+  color: #8BE3BF;
+  font-size: 13.5px;
+}
+.exito-form.visible { display: block; }
+.exito-form strong { display: block; color: #C8F5E2; margin-bottom: 3px; }
 
 /* ------------------------------------------------------------
    Ficha del trabajo
@@ -778,7 +837,13 @@ body.vista-sala .sala { display: block; }
   body { overflow: hidden; }
 
   .barra { gap: 10px; padding: 0 10px; }
-  .marca strong { font-size: 17px; }
+  /* En la barra del celular no caben el título y el logo a la vez.
+     Un título cortado a "Mapa de ..." no comunica nada, así que se
+     deja el logo, que ya identifica la división. El nombre completo
+     aparece en los PDF y en el encabezado del panel. */
+  .marca { display: none; }
+  .logo { height: 28px; max-width: 80px; }
+  .creditos { display: none; }
   .btn.solo-movil { display: inline-flex; font-size: 20px; padding: 6px 12px; line-height: 1; }
 
   /* Sala, Historial y Admin pasan a un menú desplegable */
