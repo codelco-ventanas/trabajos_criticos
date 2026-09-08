@@ -134,11 +134,30 @@ export function revisaArchivo(archivo) {
   return null;
 }
 
+// La extensión se deduce del tipo de archivo, nunca de su nombre.
+// Los celulares entregan nombres impredecibles (sin extensión, con
+// espacios, dos puntos o acentos según la cámara o la galería), y
+// cualquiera de esos casos produce una ruta que el almacenamiento
+// rechaza con "Invalid path specified in request URL".
+const EXTENSION = {
+  'image/jpeg': 'jpg',
+  'image/png': 'png',
+  'application/pdf': 'pdf'
+};
+
+/** Identificador único. crypto.randomUUID no existe en algunos
+ *  navegadores antiguos de celular, así que hay alternativa. */
+function identificador() {
+  if (globalThis.crypto?.randomUUID) return crypto.randomUUID();
+  return 'p-' + Date.now().toString(36) + '-' +
+         Math.random().toString(36).slice(2, 10);
+}
+
 export async function subePermiso(archivo) {
-  const ext = (archivo.name.split('.').pop() || 'dat').toLowerCase();
+  const ext = EXTENSION[archivo.type] || 'dat';
   const p = new Date();
   const carpeta = `${p.getFullYear()}-${String(p.getMonth() + 1).padStart(2, '0')}`;
-  const ruta = `${carpeta}/${crypto.randomUUID()}.${ext}`;
+  const ruta = `${carpeta}/${identificador()}.${ext}`;
   const { error } = await cliente.storage
     .from('permisos')
     .upload(ruta, archivo, { contentType: archivo.type, upsert: false });
