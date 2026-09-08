@@ -7,7 +7,7 @@
 export const SUPABASE = {
   // >>> REEMPLAZA ESTOS DOS VALORES <<<
   // Supabase > Project Settings > Data API
-  url:     'https://mustvffwbwqslejpqsau.supabase.co/rest/v1/',
+  url:     'https://mustvffwbwqslejpqsau.supabase.co',
   // Esta es la clave "anon public". Está pensada para vivir en el
   // navegador: no da acceso administrativo, sólo lo que permitan las
   // políticas de la base de datos. Nunca pongas aquí la clave
