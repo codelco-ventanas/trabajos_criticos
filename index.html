@@ -1,0 +1,361 @@
+<!DOCTYPE html>
+<html lang="es-CL">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1">
+<meta name="theme-color" content="#0B131B">
+<title>Trabajos Críticos · División Ventanas</title>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600&family=Barlow+Semi+Condensed:wght@500;600&display=swap" rel="stylesheet">
+
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css">
+<link rel="stylesheet" href="css/estilos.css">
+</head>
+<body>
+
+<!-- Pantalla que aparece si falta configurar Supabase -->
+<div class="cortina" id="cortina">
+  <div class="cortina-caja">
+    <h1>Falta conectar la base de datos</h1>
+    <p>Abre <b>js/config.js</b> y reemplaza la dirección del proyecto y la clave pública por las de tu cuenta de Supabase. Las encuentras en <b>Project Settings → Data API</b>.</p>
+    <code>export const SUPABASE = {
+  url:     'https://xxxxxxxx.supabase.co',
+  anonKey: 'eyJhbGciOi...'
+};</code>
+  </div>
+</div>
+
+<!-- ======================= BARRA SUPERIOR ======================= -->
+<header class="barra">
+  <div class="marca">
+    <span class="antetitulo">Codelco Ventanas</span>
+    <strong>Mapa de Trabajos Críticos</strong>
+  </div>
+
+  <div class="enVivo" id="enVivo" data-estado="conectando">
+    <i class="pulso"></i><span class="texto">Conectando</span>
+  </div>
+
+  <div class="contadores" id="contadores">
+    <div class="contador total"><b class="cifra" id="cuentaTotal">0</b><span class="etiqueta">activos</span></div>
+    <div class="contador" style="--tono:var(--caliente)"><b class="cifra" id="cuentaCaliente">0</b><span class="etiqueta">caliente</span></div>
+    <div class="contador" style="--tono:var(--altura)"><b class="cifra" id="cuentaAltura">0</b><span class="etiqueta">altura</span></div>
+    <div class="contador" style="--tono:var(--confinado)"><b class="cifra" id="cuentaConfinado">0</b><span class="etiqueta">confinado</span></div>
+  </div>
+
+  <div class="acciones">
+    <span class="insignia-admin">Administrador</span>
+    <button class="btn plano solo-movil" id="btnMas" aria-expanded="false" aria-label="Más opciones">⋯</button>
+    <div class="grupo-acciones" id="grupoAcciones">
+      <button class="btn plano" id="btnSala" title="Vista para la Unidad de Emergencia">Sala</button>
+      <button class="btn plano" id="btnHistorial" title="Historial de trabajos">Historial</button>
+      <button class="btn plano" id="btnAdmin" title="Modo administrador">Admin</button>
+    </div>
+    <button class="btn principal" id="btnNuevo">+ <span class="texto">Nuevo trabajo</span></button>
+    <img class="logo" id="logoMarca" src="assets/logo-codelco-ssb.png"
+         alt="Codelco · Salud, Seguridad y Bienestar"
+         onerror="this.remove()">
+  </div>
+</header>
+
+<!-- ======================= ESCENARIO ======================= -->
+<main class="escenario">
+  <div id="mapa"></div>
+  <button class="btn chico reencuadrar" id="btnEncuadrar" title="Ver todo el plano">Ver todo el plano</button>
+
+  <!-- Aviso durante la elección del punto -->
+  <div class="guia" id="guia">
+    <p>Toca en el plano el lugar exacto del trabajo.
+      <small>Puedes acercar la imagen antes de marcar. Después podrás corregirlo.</small>
+    </p>
+    <button class="btn chico" id="btnCancelarPunto">Cancelar</button>
+  </div>
+
+  <!-- Panel lateral / hoja inferior -->
+  <aside class="panel" id="panel">
+    <button class="tirador" id="tirador" aria-expanded="false">
+      <span id="tiradorTexto">Trabajos críticos activos</span>
+    </button>
+
+    <div class="panel-cabecera">
+      <h2>Trabajos críticos activos</h2>
+      <p id="resumenPanel">Cargando…</p>
+      <div class="filtros" id="filtros">
+        <button class="filtro neutro" data-tipo="" aria-pressed="true">Todos <span class="cifra" data-cuenta="">0</span></button>
+        <button class="filtro" data-tipo="caliente" style="--tono:var(--caliente)"><i class="icono-tipo caliente"></i>Caliente <span class="cifra" data-cuenta="caliente">0</span></button>
+        <button class="filtro" data-tipo="altura" style="--tono:var(--altura)"><i class="icono-tipo altura"></i>Altura <span class="cifra" data-cuenta="altura">0</span></button>
+        <button class="filtro" data-tipo="confinado" style="--tono:var(--confinado)"><i class="icono-tipo confinado"></i>Confinado <span class="cifra" data-cuenta="confinado">0</span></button>
+      </div>
+      <button class="desplegar" id="btnDesplegar" aria-expanded="false">
+        <span id="textoDesplegar">Ver más información</span>
+        <i class="flecha" aria-hidden="true"></i>
+      </button>
+    </div>
+
+    <div class="lista" id="lista"></div>
+  </aside>
+
+  <!-- ======================= VISTA SALA DE EMERGENCIA ======================= -->
+  <section class="sala" id="sala">
+    <div style="display:flex;align-items:center;gap:14px;margin-bottom:18px">
+      <h2 style="font-family:var(--condensada);font-size:22px;margin:0;flex:1">
+        Unidad de Emergencia · trabajos críticos en ejecución
+      </h2>
+      <span class="reloj" id="reloj" style="color:var(--tenue)"></span>
+      <button class="btn" id="btnSalirSala">Volver al mapa</button>
+    </div>
+
+    <div class="sala-cifras">
+      <div class="sala-cifra"><div class="n" id="salaTotal">0</div><div class="r">trabajos activos ahora</div></div>
+      <div class="sala-cifra" style="--tono:var(--caliente)"><div class="n" id="salaCaliente">0</div><div class="r">en caliente</div></div>
+      <div class="sala-cifra" style="--tono:var(--altura)"><div class="n" id="salaAltura">0</div><div class="r">en altura</div></div>
+      <div class="sala-cifra" style="--tono:var(--confinado)"><div class="n" id="salaConfinado">0</div><div class="r">en espacio confinado</div></div>
+    </div>
+
+    <div class="sala-cifra" style="--tono:var(--cobre);margin-bottom:18px">
+      <div class="n" id="salaPersonas">0</div>
+      <div class="r">personas expuestas en trabajos críticos en este momento</div>
+    </div>
+
+    <table class="sala-tabla">
+      <thead>
+        <tr>
+          <th>Trabajo</th><th>Área y equipo</th><th>Empresa</th>
+          <th>Supervisor</th><th>Personas</th><th>Inicio</th><th>Termina</th>
+        </tr>
+      </thead>
+      <tbody id="salaCuerpo"></tbody>
+    </table>
+  </section>
+</main>
+
+<!-- ======================= MODAL: FORMULARIO ======================= -->
+<div class="velo" id="veloForm">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="tituloForm">
+    <div class="modal-cabecera">
+      <h3 id="tituloForm">Nuevo trabajo crítico</h3>
+      <button class="cerrar" data-cerrar="veloForm" aria-label="Cerrar">✕</button>
+    </div>
+
+    <div class="modal-cuerpo">
+      <div class="error-form" id="errorForm"></div>
+      <div class="exito-form" id="exitoForm"></div>
+
+      <form id="formulario" class="campos" autocomplete="off">
+        <div class="campo">
+          <label>Tipo de trabajo <span class="obligatorio">*</span></label>
+          <div class="tipos">
+            <label class="tipo-opcion" style="--tono:var(--caliente)">
+              <input type="radio" name="tipo" value="caliente" required>
+              <span><i class="icono-tipo caliente"></i>Caliente</span>
+            </label>
+            <label class="tipo-opcion" style="--tono:var(--altura)">
+              <input type="radio" name="tipo" value="altura">
+              <span><i class="icono-tipo altura"></i>Altura</span>
+            </label>
+            <label class="tipo-opcion" style="--tono:var(--confinado)">
+              <input type="radio" name="tipo" value="confinado">
+              <span><i class="icono-tipo confinado"></i>Espacio confinado</span>
+            </label>
+          </div>
+        </div>
+
+        <div class="campo">
+          <label>Ubicación en el plano <span class="obligatorio">*</span></label>
+          <div class="ubicacion" id="cajaUbicacion">
+            <p id="textoUbicacion">Sin marcar<small>El punto señala la ubicación exacta del trabajo para facilitar la respuesta ante una emergencia.</small></p>
+            <button type="button" class="btn chico" id="btnMarcar">Marcar en el plano</button>
+          </div>
+        </div>
+
+        <div class="pareja">
+          <div class="campo">
+            <label for="empresa">Empresa <span class="obligatorio">*</span></label>
+            <input type="text" id="empresa" name="empresa" required autocomplete="off">
+          </div>
+          <div class="campo">
+            <label for="area">Área <span class="obligatorio">*</span></label>
+            <input type="text" id="area" name="area" required autocomplete="off">
+          </div>
+        </div>
+
+        <div class="campo">
+          <label for="equipo">Equipo o instalación <span class="obligatorio">*</span></label>
+          <input type="text" id="equipo" name="equipo" required autocomplete="off">
+          <span class="ayuda">Sea específico. Esta información será utilizada por los equipos de emergencia para localizar y acceder rápidamente al lugar del trabajo. Considere que algunos sectores pueden estar ocultos por techumbres o estructuras en el plano.</span>
+        </div>
+
+        <div class="campo">
+          <label for="descripcion">Descripción de la actividad <span class="obligatorio">*</span></label>
+          <textarea id="descripcion" name="descripcion" required maxlength="400"
+                    ></textarea>
+        </div>
+
+        <div class="pareja">
+          <div class="campo">
+            <label for="trabajadores">Número de trabajadores <span class="obligatorio">*</span></label>
+            <input type="number" id="trabajadores" name="trabajadores" min="1" max="999" required inputmode="numeric">
+          </div>
+          <div class="campo">
+            <label for="supervisor">Supervisor responsable <span class="obligatorio">*</span></label>
+            <input type="text" id="supervisor" name="supervisor" required autocomplete="off">
+          </div>
+        </div>
+
+        <div class="pareja">
+          <div class="campo">
+            <label for="fechaInicio">Fecha de inicio <span class="obligatorio">*</span></label>
+            <input type="date" id="fechaInicio" required>
+          </div>
+          <div class="campo">
+            <label for="horaInicio">Hora de inicio <span class="obligatorio">*</span></label>
+            <input type="time" id="horaInicio" required>
+          </div>
+        </div>
+
+        <div class="pareja">
+          <div class="campo">
+            <label for="fechaTermino">Fecha de término <span class="obligatorio">*</span></label>
+            <input type="date" id="fechaTermino" required>
+          </div>
+          <div class="campo">
+            <label for="horaTermino">Hora de término <span class="obligatorio">*</span></label>
+            <input type="time" id="horaTermino" required>
+          </div>
+        </div>
+        <span class="ayuda" id="ayudaVentana">El permiso dura como máximo 12 horas y no puede cruzar el cambio de turno.</span>
+
+        <div class="campo">
+          <label>Permiso de trabajo <span class="obligatorio">*</span></label>
+          <div class="adjunto" id="cajaAdjunto">
+            <p id="textoAdjunto">Sin adjuntar<small>Foto o PDF del permiso firmado. JPG, PNG o PDF, hasta 10 MB.</small></p>
+            <button type="button" class="btn chico" id="btnAdjuntar">Adjuntar</button>
+          </div>
+          <input type="file" id="archivo" accept="image/jpeg,image/png,application/pdf">
+        </div>
+
+        <div class="campo">
+          <label for="registradoPor">Registrado por</label>
+          <input type="text" id="registradoPor" autocomplete="off">
+          <span class="ayuda">Queda registrado en la trazabilidad del trabajo.</span>
+        </div>
+      </form>
+    </div>
+
+    <div class="modal-pie">
+      <button class="btn" data-cerrar="veloForm" id="btnCancelarForm">Cancelar</button>
+      <button class="btn" id="btnRespaldoDeclaracion" hidden>Respaldo PDF</button>
+      <button class="btn principal" id="btnGuardar">Guardar trabajo</button>
+    </div>
+  </div>
+</div>
+
+<!-- ======================= MODAL: FICHA ======================= -->
+<div class="velo" id="veloFicha">
+  <div class="modal" role="dialog" aria-modal="true">
+    <div class="modal-cabecera">
+      <h3 id="tituloFicha">Trabajo crítico</h3>
+      <button class="cerrar" data-cerrar="veloFicha" aria-label="Cerrar">✕</button>
+    </div>
+    <div class="modal-cuerpo" id="cuerpoFicha"></div>
+    <div class="modal-pie">
+      <button class="btn izquierda" id="btnCentrar">Ver en el mapa</button>
+      <button class="btn solo-admin" id="btnEditar">Editar</button>
+      <button class="btn solo-admin" id="btnFinalizar">Finalizar ahora</button>
+      <button class="btn peligro solo-admin" id="btnEliminar">Eliminar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ======================= MODAL: PERMISO ======================= -->
+<div class="velo" id="veloPermiso">
+  <div class="modal ancho" role="dialog" aria-modal="true">
+    <div class="modal-cabecera">
+      <h3>Permiso de trabajo</h3>
+      <a class="btn chico" id="btnDescargarPermiso" target="_blank" rel="noopener">Abrir aparte</a>
+      <button class="cerrar" data-cerrar="veloPermiso" aria-label="Cerrar">✕</button>
+    </div>
+    <div class="modal-cuerpo" id="cuerpoPermiso"></div>
+  </div>
+</div>
+
+<!-- ======================= MODAL: ADMIN ======================= -->
+<div class="velo" id="veloAdmin">
+  <div class="modal" style="max-width:420px" role="dialog" aria-modal="true">
+    <div class="modal-cabecera">
+      <h3>Modo administrador</h3>
+      <button class="cerrar" data-cerrar="veloAdmin" aria-label="Cerrar">✕</button>
+    </div>
+    <div class="modal-cuerpo">
+      <p style="margin-top:0;color:var(--tenue);font-size:14px">
+        Editar, extender el plazo y eliminar trabajos requiere clave. Ver y registrar no.
+      </p>
+      <div class="error-form" id="errorAdmin"></div>
+      <div class="campo">
+        <label for="claveAdmin">Clave</label>
+        <input type="password" id="claveAdmin" autocomplete="current-password">
+      </div>
+    </div>
+    <div class="modal-pie">
+      <button class="btn" data-cerrar="veloAdmin">Cancelar</button>
+      <button class="btn principal" id="btnEntrarAdmin">Entrar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ======================= MODAL: HISTORIAL ======================= -->
+<div class="velo" id="veloHistorial">
+  <div class="modal ancho" role="dialog" aria-modal="true">
+    <div class="modal-cabecera">
+      <h3>Historial de trabajos críticos</h3>
+      <button class="btn chico" id="btnExportarPdf">PDF</button>
+      <button class="btn chico" id="btnExportar">CSV</button>
+      <button class="cerrar" data-cerrar="veloHistorial" aria-label="Cerrar">✕</button>
+    </div>
+    <div class="modal-cuerpo">
+      <div class="filtros-historial">
+        <div class="campo"><label for="hDesde">Desde</label><input type="date" id="hDesde"></div>
+        <div class="campo"><label for="hHasta">Hasta</label><input type="date" id="hHasta"></div>
+        <div class="campo">
+          <label for="hTipo">Tipo</label>
+          <select id="hTipo">
+            <option value="">Todos</option>
+            <option value="caliente">Caliente</option>
+            <option value="altura">Altura</option>
+            <option value="confinado">Espacio confinado</option>
+          </select>
+        </div>
+        <div class="campo"><label for="hEmpresa">Empresa</label><input type="text" id="hEmpresa" placeholder="Contiene…"></div>
+        <div class="campo"><label for="hArea">Área</label><input type="text" id="hArea" placeholder="Contiene…"></div>
+        <div class="campo"><label for="hSupervisor">Supervisor</label><input type="text" id="hSupervisor" placeholder="Contiene…"></div>
+      </div>
+      <div style="display:flex;gap:10px;margin-bottom:14px">
+        <button class="btn principal" id="btnBuscarHistorial">Buscar</button>
+        <button class="btn" id="btnLimpiarHistorial">Limpiar filtros</button>
+        <span class="ayuda" id="resumenHistorial" style="align-self:center"></span>
+      </div>
+      <table class="tabla-historial">
+        <thead>
+          <tr><th>Fecha</th><th>Inicio</th><th>Término</th><th>Tipo</th><th>Empresa</th>
+              <th>Área / equipo</th><th>Supervisor</th><th>Pers.</th></tr>
+        </thead>
+        <tbody id="cuerpoHistorial"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<div class="creditos">2026 © CODELCO CHILE. TODOS LOS DERECHOS RESERVADOS.</div>
+
+<div class="avisos" id="avisos"></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
+<script type="module" src="js/app.js"></script>
+</body>
+</html>
