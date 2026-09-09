@@ -12,7 +12,7 @@ export const SUPABASE = {
   // navegador: no da acceso administrativo, sólo lo que permitan las
   // políticas de la base de datos. Nunca pongas aquí la clave
   // "service_role".
-  anonKey: 'PEGA_AQUI_TU_PUBLISHABLE_KEY'
+  anonKey: 'sb_publishable_-DCzxMm4c45qYM6x_b6RIA_2cE1cJcx'
 };
 
 // Clave para entrar en modo administrador (editar, extender y eliminar).
